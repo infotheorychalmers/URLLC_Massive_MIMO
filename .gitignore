@@ -1,0 +1,10 @@
+# Add any directories, files, or patterns you don't want to be tracked by version control
+
+2UE-code/job_sec3_fig4
+2UE-code/job_sec3_fig4_asymp
+2UE-code/job_section3_fig2
+2UE-code/job_section3_fig3
+Multicell-code/job_section4_fig5_LS
+Multicell-code/job_section4_fig5_MMSE
+*.DS_Store
+*.asv
