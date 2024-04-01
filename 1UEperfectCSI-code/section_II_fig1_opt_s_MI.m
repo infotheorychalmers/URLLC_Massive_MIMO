@@ -1,6 +1,7 @@
-function section_II_fig1(n,b,snr_db,Mlist,nbrOfRealizations)
-% Function section_II_fig1(n,b,snr_db,Mlist,nbrOfRealizations): Generates 
-% Fig. 1(a) and Fig. 1(b) in the paper.
+function section_II_fig1_opt_s_MI(n,b,snr_db,Mlist,nbrOfRealizations)
+% Function section_II_fig1_opt_s_MI(n,b,snr_db,Mlist,nbrOfRealizations) 
+% Generates similar figures to Fig. 1(a) and Fig. 1(b) in the paper. The
+% difference is that here we fix s = 1/sigma_sq (optimal choice for I_s)
 % 
 % INPUTS:
 % n = blocklength
@@ -60,6 +61,7 @@ for i = 1:length(Mlist)
         g(j) = v1(:,j)' * H1(:,j) ; % effective channel
         ghat(j) = v1(:,j)' * hhat1(:,j); % effective channel estimate (Perf. CSI)
     end
+    s = 1./sigma_sq;
     %-------------------------------------
     % EVALUATE RCUs for perfect CSI
     f = @(s) getErrorProbability(s, n, rho, R, g,ghat,sigma_sq);     
@@ -67,24 +69,21 @@ for i = 1:length(Mlist)
     
     if eps_rcus_sp(i) > 1e-3 % We only compute real RCUs for large epsilon
         [nz,nv,ng]=generateRVs(rho, n, M, nbrOfRealizations); % RVs involved in info. density
-        i_s = @(s) -s*nz + (s./(1+s*rho*ng)).*nv + n*log(1+s*rho*ng); % generalized info. density
-        error_val = @(s) mean(exp(-max(0, i_s(s) - log(2^b-1)))); % Exact RCUs
-        [eps_rcus(i), s_val(i)]=golden_search(error_val,  1e-2, 2, 1e-4); % Optimization over s
+        i_s = -s.*nz + (s./(1+s.*rho.*ng)).*nv + n*log(1+s.*rho.*ng); % generalized info. density
+        eps_rcus(i) = mean(exp(-max(0, i_s - log(2^b-1)))); % Exact RCUs
     end
     %-------------------------------------un
     %EVALUATE OUTAGE
     eps_out(i) = gamcdf((2^R - 1)/rho, M, 1); %compute outage probability
     %-------------------------------------
     % EVALUATE NA MC
-    [nz,nv,ng]=generateRVs(rho, n, M, nbrOfRealizations*10); % RVs involved in info. density
-    i_s = @(s) -s*nz + (s./(1+s*rho*ng)).*nv + n*log(1+s*rho*ng); % generalized info. density
-    I_s = @(s) mean(i_s(s));
-    V_s = @(s) mean((i_s(s)-I_s(s)).^2);
-    fNA = @(s) qfunc((I_s(s)-log(2^b-1)) ./ sqrt(V_s(s)));
-    [eps_na_MC(i), s_val_na_MC(i)]=golden_search(fNA,  START_INT, END_INT, TOL); % Optimization over s        [eps_rcus(i), s_val(i)]=golden_search(error_val,  1e-2, 2, 1e-4); % Optimization over s
+    [nz,nv,ng]=generateRVs(rho, n, M, nbrOfRealizations); % RVs involved in info. density
+    i_s = -s.*nz + (s./(1+s.*rho.*ng)).*nv + n*log(1+s.*rho.*ng); % generalized info. density
+    I_s = mean(i_s);
+    V_s = mean((i_s-I_s).^2);
+    eps_na_MC(i) = qfunc((I_s-log(2^b-1)) ./ sqrt(V_s));
     %EVALUATE NORMAL APPROXIMATION
-    fNA = @(s) getErrorProbabilityNA(s, n, rho, b, g,ghat,sigma_sq); 
-    [eps_na(i), s_val_na(i)]=golden_search(fNA,  START_INT, END_INT, TOL); % Optimization over s
+    eps_na(i) = getErrorProbabilityNA(s, n, rho, b, g,ghat,sigma_sq); 
     %-------------------------------------
     %EVALUATE NORMAL APPROXIMATION (M->infinity)
     rho_na = M*rho; % Renormalization of M since this is a valid approx. when M->infinity.
@@ -97,14 +96,14 @@ if DEBUG == 1
 figure
 if SNR_normalized == 0 
     semilogy(Mlist, eps_out); hold on;
-    semilogy(Mlist, eps_na_MC); % This curve is not in the paper
+    semilogy(Mlist, eps_na_MC);
     semilogy(Mlist, eps_na);
     semilogy(Mlist, eps_naG);
     semilogy(Mlist, eps_rcus,'black*');
     semilogy(Mlist, eps_rcus_sp,'black');    
 else
     loglog(Mlist, eps_out); hold on;
-    loglog(Mlist, eps_na_MC); % This curve is not in the paper
+    loglog(Mlist, eps_na_MC);
     loglog(Mlist, eps_na);
     loglog(Mlist, eps_naG);
     loglog(Mlist, eps_rcus,'black*');
@@ -207,6 +206,7 @@ for j = 1:nbrOfRealizations
     g = g_list(j);
     ghat = ghat_list(j);
     sigma_sq = sigma_sq_list(j);
+    s = 1/sigma_sq; % Only if s chosen as the optimal for GMI. 
     % Parameters related to the CGF of the info density:
     betaA_ul = s*rho*abs(g-ghat)^2 + s*sigma_sq;
     betaB_ul = s*(rho*abs(g)^2 + sigma_sq) / (1+s*rho*abs(ghat)^2);
